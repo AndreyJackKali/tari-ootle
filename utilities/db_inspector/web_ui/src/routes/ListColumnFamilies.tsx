@@ -5,7 +5,7 @@ import { Box, Button, Divider, Grid, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { DataGrid, GridSortModel } from "@mui/x-data-grid";
 import prettyBytes from "pretty-bytes";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link as RouterLink, useParams } from "react-router-dom";
 import { useDatabaseCfsList } from "../store/databases.ts";
 
@@ -15,7 +15,19 @@ export default function ListColumnFamilies() {
   const [selectedCf, setSelectedCf] = useState<string | number | null>(null);
   const [sortModel, setSortModel] = useState<GridSortModel>([{ field: "name", sort: "asc" }]);
 
-  const { data, isLoading } = useDatabaseCfsList(dbName || "<NOTHING>");
+  useEffect(() => {
+    setSelectedCf(null);
+  }, [dbName]);
+
+  const { data, isLoading, error } = useDatabaseCfsList(dbName || "<NOTHING>");
+
+  if (error) {
+    return (
+      <div>
+        <p>Error loading column families: {error.message}</p>
+      </div>
+    );
+  }
 
   if (isLoading || !data) {
     return <div>Loading...</div>;
@@ -55,6 +67,10 @@ export default function ListColumnFamilies() {
     setSelectedCf(selection);
   };
 
+  const inspectUrl = selectedCf
+    ? `/databases/${encodeURIComponent(dbName ?? "")}/column-families/${encodeURIComponent(String(selectedCf))}`
+    : "#";
+
   return (
     <>
       <Grid size={{ xs: 12, md: 12, lg: 12 }}>
@@ -63,7 +79,7 @@ export default function ListColumnFamilies() {
           style={{
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "left",
+            alignItems: "flex-start",
           }}
         >
           <Typography variant="h4" style={{ paddingBottom: theme.spacing(2) }}>
@@ -73,7 +89,7 @@ export default function ListColumnFamilies() {
               variant="contained"
               color="primary"
               component={RouterLink}
-              to={`/databases/${dbName}/column-families/${selectedCf}`}
+              to={inspectUrl}
               disabled={!selectedCf}
             >
               Inspect
@@ -84,6 +100,7 @@ export default function ListColumnFamilies() {
       </Grid>
       <Grid size={{ xs: 12, md: 12, lg: 12 }}>
         <DataGrid
+          key={dbName}
           rows={cfNames.map((name) => ({ name }))}
           columns={[
             {
